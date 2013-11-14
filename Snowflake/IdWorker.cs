@@ -13,7 +13,7 @@ namespace Snowflake
 {
     public class IdWorker
     {
-        public const long Twepoch = 1288834974657L;
+		public const long Twepoch = 1356998400000L;
 
         const int WorkerIdBits = 5;
         const int DatacenterIdBits = 5;
@@ -28,7 +28,9 @@ namespace Snowflake
 
         private long _sequence = 0L;
         private long _lastTimestamp = -1L;
-	
+		
+		// synchronization object
+		readonly object _lock = new Object();
 	
         public IdWorker(long workerId, long datacenterId, long sequence = 0L) 
         {
@@ -42,15 +44,11 @@ namespace Snowflake
                 throw new ArgumentException( String.Format("worker Id can't be greater than {0} or less than 0", MaxWorkerId) );
             }
 
+			// sanity check for data centre id
             if (datacenterId > MaxDatacenterId || datacenterId < 0)
             {
                 throw new ArgumentException( String.Format("datacenter Id can't be greater than {0} or less than 0", MaxDatacenterId));
             }
-
-            //log.info(
-            //    String.Format("worker starting. timestamp left shift {0}, datacenter id bits {1}, worker id bits {2}, sequence bits {3}, workerid {4}",
-            //                  TimestampLeftShift, DatacenterIdBits, WorkerIdBits, SequenceBits, workerId)
-            //    );	
         }
 	
         public long WorkerId {get; protected set;}
@@ -61,16 +59,17 @@ namespace Snowflake
             get { return _sequence; }
             internal set { _sequence = value; }
         }
-
-        // def get_timestamp() = System.currentTimeMillis
-
-        readonly object _lock = new Object();
 	
-        public virtual long NextId() 
-        {
+        public virtual long NextId()
+		{
+			// declaration outside of synchronized code block, shorter lock time as result?
+			long timestamp, id;
+
             lock(_lock) 
             {
-                var timestamp = TimeGen();
+				// get current timestamp				
+				timestamp = System.CurrentTimeMillis(); // TimeGen();
+				// reduced callstack by calling the method directly
 
                 if (timestamp < _lastTimestamp) 
                 {
@@ -79,40 +78,58 @@ namespace Snowflake
                     throw new InvalidSystemClock(String.Format(
                         "Clock moved backwards.  Refusing to generate id for {0} milliseconds", _lastTimestamp - timestamp));
                 }
-
-                if (_lastTimestamp == timestamp) 
+				
+				if (_lastTimestamp == timestamp) // if still in the same milisecond as the last id generated
                 {
+					// strip away all '1's beyond the sequence bit length
+					// this is a way of saying if it is larger than the sequence max-number, make it 0
                     _sequence = (_sequence + 1) & SequenceMask;
-                    if (_sequence == 0) 
+
+					if (_sequence == 0) //if sequence reached beyond maximum
                     {
+						// wait for next milisecond
                         timestamp = TilNextMillis(_lastTimestamp);
                     }
-                } else {
+                } 
+				else // otherwise use 0 as the first sequence in the current (new) milisecond
+				{
                     _sequence = 0;
                 }
 
+				// remember the (last) timestamp used to generate (this) id
                 _lastTimestamp = timestamp;
-                var id = ((timestamp - Twepoch) << TimestampLeftShift) |
+
+                id = ((timestamp - Twepoch) << TimestampLeftShift) |
                          (DatacenterId << DatacenterIdShift) |
                          (WorkerId << WorkerIdShift) | _sequence;
-					
-                return id;
-            }
+
+			}
+
+			return id;
         }
 
+		/// <summary>
+		/// Allows worker to wait until the next milisecond. This is normally because the max sequence number for the specified timestamp has been reached.
+		/// </summary>
+		/// <param name="lastTimestamp">Timestamp used to generate last ID.</param>
+		/// <returns>New milisecond.</returns>
         protected virtual long TilNextMillis(long lastTimestamp)
         {
-            var timestamp = TimeGen();
+			long timestamp = System.CurrentTimeMillis(); // TimeGen();
+			// reduced callstack by calling the method directly
+
             while (timestamp <= lastTimestamp) 
             {
-                timestamp = TimeGen();
+				timestamp = System.CurrentTimeMillis(); // TimeGen();
             }
+
             return timestamp;
         }
 
-        protected virtual long TimeGen()
-        {
-            return System.CurrentTimeMillis();
-        }      
+		// Unnecessary (proxy) method.
+		//protected virtual long TimeGen()
+		//{
+		//	return System.CurrentTimeMillis();
+		//}      
     }
 }
