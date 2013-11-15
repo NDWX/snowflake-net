@@ -54,12 +54,20 @@ namespace Snowflake
         public long WorkerId {get; protected set;}
         public long DatacenterId {get; protected set;}
 
+		/// <summary>
+		/// Last generated sequence for the last timestamp.
+		/// </summary>
+		/// <remarks>On its own, this property does not convey any useful information.</remarks>
         public long Sequence
         {
             get { return _sequence; }
             internal set { _sequence = value; }
         }
 	
+		/// <summary>
+		/// Generate next ID.
+		/// </summary>
+		/// <returns>Next ID.</returns>
         public virtual long NextId()
 		{
 			// declaration outside of synchronized code block, shorter lock time as result?
