@@ -135,9 +135,9 @@ namespace Snowflake
         }
 
 		// Unnecessary (proxy) method.
-		//protected virtual long TimeGen()
-		//{
-		//	return System.CurrentTimeMillis();
-		//}      
+		protected virtual long TimeGen()
+		{
+			return System.CurrentTimeMillis();
+		}      
     }
 }

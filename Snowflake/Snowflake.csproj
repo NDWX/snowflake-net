@@ -36,6 +36,7 @@
     <Reference Include="System.Core" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="CaspianIdWorker.cs" />
     <Compile Include="DisposableAction.cs" />
     <Compile Include="IdWorker.cs" />
     <Compile Include="InvalidSystemClock.cs" />
