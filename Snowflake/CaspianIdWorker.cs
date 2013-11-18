@@ -72,7 +72,7 @@ namespace Snowflake
 		public virtual long NextId()
 		{
 			// declaration outside of synchronized code block, shorter lock time as result?
-			long timestamp, id;
+			long timestamp, sequence, id;
 
 			lock (_lock)
 			{
@@ -105,13 +105,15 @@ namespace Snowflake
 					_sequence = 0;
 				}
 
+				sequence = _sequence;
+
 				// remember the (last) timestamp used to generate (this) id
 				_lastTimestamp = timestamp;
 
-				id = (DatacenterId << DatacenterIdShift) | (WorkerId << WorkerIdShift) |
-						 ((timestamp - baseEpoch) << TimestampLeftShift) | _sequence;
-
 			}
+
+			id = (DatacenterId << DatacenterIdShift) | (WorkerId << WorkerIdShift) |
+					 ((timestamp - baseEpoch) << TimestampLeftShift) | _sequence;
 
 			return id;
 		}
