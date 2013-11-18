@@ -113,7 +113,7 @@ namespace Snowflake
 
 			id = ((timestamp - Twepoch) << TimestampLeftShift) |
 					 (DatacenterId << DatacenterIdShift) |
-					 (WorkerId << WorkerIdShift) | _sequence;
+					 (WorkerId << WorkerIdShift) | sequence;
 
 			return id;
         }
